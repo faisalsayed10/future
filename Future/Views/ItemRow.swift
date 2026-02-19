@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import FutureShared
 
 struct ItemRow: View {
     let item: FutureItem
@@ -27,9 +28,24 @@ struct ItemRow: View {
                         .lineLimit(1)
                 }
 
-                Text(timeDescription)
-                    .font(.caption2)
-                    .foregroundStyle(item.isDelivered ? Color.secondary : Color.accentColor)
+                HStack(spacing: 6) {
+                    Text(timeDescription)
+                        .font(.caption2)
+                        .foregroundStyle(item.isDelivered ? Color.secondary : Color.accentColor)
+
+                    if !item.labels.isEmpty {
+                        ForEach(item.labels, id: \.self) { label in
+                            Text(label)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor.opacity(0.12))
+                                .foregroundStyle(Color.accentColor)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
             }
 
             Spacer()
@@ -38,7 +54,9 @@ struct ItemRow: View {
     }
 
     private var timeDescription: String {
-        if item.isDelivered {
+        if item.isNeverDeliver {
+            return "Saved"
+        } else if item.isDelivered {
             return "Arrived \(item.deliverAt.formatted(.relative(presentation: .named)))"
         } else {
             return "Arriving \(item.deliverAt.formatted(.relative(presentation: .named)))"

@@ -1,4 +1,5 @@
 import SwiftUI
+import FutureShared
 
 struct ShareView: View {
     let url: String
@@ -224,7 +225,7 @@ struct ShareView: View {
             title: title,
             note: note.isEmpty ? nil : note,
             createdAt: Date(),
-            deliverAt: selected.date,
+            deliverAt: selected.neverNotify ? .distantFuture : selected.date,
             isRead: false
         )
         onSend(item)

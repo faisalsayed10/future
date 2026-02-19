@@ -1,5 +1,10 @@
 import SwiftUI
 import UserNotifications
+import FutureShared
+
+extension Notification.Name {
+    static let showNotificationDetail = Notification.Name("showNotificationDetail")
+}
 
 @main
 struct FutureApp: App {
@@ -19,6 +24,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         NotificationManager.shared.requestPermission()
+        NotificationManager.shared.registerCategory()
         return true
     }
 
@@ -30,11 +36,27 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         guard let idString = userInfo["itemId"] as? String,
               let id = UUID(uuidString: idString) else { return }
 
-        FutureStore.shared.markRead(id)
+        switch response.actionIdentifier {
+        case NotificationManager.openActionIdentifier:
+            FutureStore.shared.markRead(id)
+            if let item = FutureStore.shared.items.first(where: { $0.id == id }),
+               let url = URL(string: item.url) {
+                await UIApplication.shared.open(url)
+            }
 
-        if let item = FutureStore.shared.items.first(where: { $0.id == id }),
-           let url = URL(string: item.url) {
-            await UIApplication.shared.open(url)
+        case NotificationManager.snoozeActionIdentifier:
+            NotificationCenter.default.post(
+                name: .showNotificationDetail,
+                object: nil,
+                userInfo: ["itemId": idString, "snooze": true]
+            )
+
+        default:
+            NotificationCenter.default.post(
+                name: .showNotificationDetail,
+                object: nil,
+                userInfo: ["itemId": idString, "snooze": false]
+            )
         }
     }
 

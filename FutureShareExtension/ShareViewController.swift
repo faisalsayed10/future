@@ -1,5 +1,6 @@
 import UIKit
 import SwiftUI
+import FutureShared
 
 class ShareViewController: UIViewController {
     override func viewDidLoad() {
@@ -13,7 +14,9 @@ class ShareViewController: UIViewController {
                 title: title,
                 onSend: { [weak self] item in
                     FutureStore.shared.add(item)
-                    NotificationManager.shared.scheduleNotification(for: item)
+                    if !item.isNeverDeliver {
+                        NotificationManager.shared.scheduleNotification(for: item)
+                    }
                     self?.extensionContext?.completeRequest(returningItems: nil)
                 },
                 onCancel: { [weak self] in

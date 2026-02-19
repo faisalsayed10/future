@@ -110,6 +110,7 @@
 			);
 			name = Future;
 			packageProductDependencies = (
+				AABB00112F47015500722EA7 /* FutureShared */,
 			);
 			productName = Future;
 			productReference = E48A73DA2F47015500722EA7 /* Future.app */;
@@ -132,6 +133,7 @@
 			);
 			name = FutureShareExtension;
 			packageProductDependencies = (
+				AABB00122F47015500722EA7 /* FutureShared */,
 			);
 			productName = FutureShareExtension;
 			productReference = AABB00012F47015500722EA7 /* FutureShareExtension.appex */;
@@ -168,6 +170,9 @@
 			productRefGroup = E48A73DB2F47015500722EA7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "FutureShared" */,
+			);
 			targets = (
 				E48A73D92F47015500722EA7 /* Future */,
 				AABB00062F47015500722EA7 /* FutureShareExtension */,
@@ -349,7 +354,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRRP85K2MJ;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Future/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -382,7 +389,9 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRRP85K2MJ;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Future/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -494,6 +503,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "FutureShared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FutureShared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AABB00112F47015500722EA7 /* FutureShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FutureShared;
+		};
+		AABB00122F47015500722EA7 /* FutureShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FutureShared;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E48A73D22F47015500722EA7 /* Project object */;
 }
