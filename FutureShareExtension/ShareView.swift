@@ -14,6 +14,7 @@ struct ShareView: View {
     @State private var aiSuggestion: TimeSuggestion?
     @State private var isAILoading = false
     @State private var aiTask: Task<Void, Never>?
+    @State private var customDate = Date().addingTimeInterval(3600)
 
     private let parser = NaturalLanguageDateParser()
 
@@ -146,7 +147,40 @@ struct ShareView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                 }
+
+                if displaySuggestions.isEmpty {
+                    customPickerSection
+                }
             }
+        }
+    }
+
+    // MARK: - Custom Date Picker
+
+    private var customPickerSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundStyle(.secondary)
+                Text("Pick a date & time")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
+
+            DatePicker(
+                "",
+                selection: $customDate,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 14)
         }
     }
 
@@ -215,9 +249,15 @@ struct ShareView: View {
     }
 
     private func send() {
-        guard !displaySuggestions.isEmpty else { return }
-        let index = min(selectedIndex, displaySuggestions.count - 1)
-        let selected = displaySuggestions[index]
+        let deliverAt: Date
+
+        if displaySuggestions.isEmpty {
+            deliverAt = customDate
+        } else {
+            let index = min(selectedIndex, displaySuggestions.count - 1)
+            let selected = displaySuggestions[index]
+            deliverAt = selected.neverNotify ? .distantFuture : selected.date
+        }
 
         let item = FutureItem(
             id: UUID(),
@@ -225,7 +265,7 @@ struct ShareView: View {
             title: title,
             note: note.isEmpty ? nil : note,
             createdAt: Date(),
-            deliverAt: selected.neverNotify ? .distantFuture : selected.date,
+            deliverAt: deliverAt,
             isRead: false
         )
         onSend(item)

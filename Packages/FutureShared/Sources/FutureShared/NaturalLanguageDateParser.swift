@@ -43,9 +43,12 @@ public class NaturalLanguageDateParser {
         results += matchKeywords(trimmed)
         results += parseDuration(trimmed)
         results += parseDayName(trimmed)
-        results += parseWithDataDetector(input)
 
-        // Deduplicate by label
+        // DataDetector only as fallback — avoids partial matches like "five pm" inside "nine twenty five pm"
+        if results.isEmpty {
+            results += parseWithDataDetector(input)
+        }
+
         var seen = Set<String>()
         results = results.filter { seen.insert($0.label).inserted }
 
@@ -59,24 +62,19 @@ public class NaturalLanguageDateParser {
         let inOneHour = now.addingTimeInterval(3600)
         let inThreeHours = now.addingTimeInterval(3 * 3600)
 
-        // Tonight 9 PM
         var tonightComp = calendar.dateComponents([.year, .month, .day], from: now)
         tonightComp.hour = 21
         tonightComp.minute = 0
         let tonightRaw = calendar.date(from: tonightComp)!
         let tonight = tonightRaw > now ? tonightRaw : tonightRaw.addingTimeInterval(86400)
 
-        // Tomorrow 9 AM
         let tomorrowDay = calendar.date(byAdding: .day, value: 1, to: now)!
         var tomorrowComp = calendar.dateComponents([.year, .month, .day], from: tomorrowDay)
         tomorrowComp.hour = 9
         tomorrowComp.minute = 0
         let tomorrowDate = calendar.date(from: tomorrowComp)!
 
-        // This Weekend - Saturday noon
         let weekendDate = nextSaturday(at: 12, minute: 0)
-
-        // Someday - random time in the next 1-7 days
         let somedayDate = generateSomedayDate()
 
         return [
@@ -90,69 +88,160 @@ public class NaturalLanguageDateParser {
         ]
     }
 
-    // MARK: - Bare Number ("4", "eight")
+    // MARK: - Bare Number ("4", "eight", "935")
 
     private func parseNumber(_ input: String) -> [TimeSuggestion] {
-        guard let n = extractNumber(input), n > 0, n <= 999 else { return [] }
-
-        // Only match bare numbers, not "4 hours" (that's parseDuration)
         if input.contains(" ") { return [] }
-
-        let now = Date()
-
-        let inMinutes = now.addingTimeInterval(Double(n) * 60)
-        let inHours = now.addingTimeInterval(Double(n) * 3600)
-        let inWeekdays = addWeekdays(n, from: now)
-
-        return [
-            TimeSuggestion(
-                label: "in \(n) minute\(n == 1 ? "" : "s")",
-                date: inMinutes,
-                formattedDate: formatDate(inMinutes)
-            ),
-            TimeSuggestion(
-                label: "in \(n) hour\(n == 1 ? "" : "s")",
-                date: inHours,
-                formattedDate: formatDate(inHours)
-            ),
-            TimeSuggestion(
-                label: "in \(n) weekday\(n == 1 ? "" : "s")",
-                date: inWeekdays,
-                formattedDate: formatDate(inWeekdays)
-            ),
-        ]
-    }
-
-    // MARK: - Time Expression ("9pm", "3:30pm", "21:00")
-
-    private func parseTimeExpression(_ input: String) -> [TimeSuggestion] {
-        let cleaned = input.replacingOccurrences(of: " ", with: "")
-
-        var hour: Int?
-        var minute = 0
-        var isPM: Bool?
-
-        if cleaned.hasSuffix("am") {
-            isPM = false
-            let numPart = String(cleaned.dropLast(2))
-            let parsed = splitHourMinute(numPart)
-            hour = parsed.0
-            minute = parsed.1
-        } else if cleaned.hasSuffix("pm") {
-            isPM = true
-            let numPart = String(cleaned.dropLast(2))
-            let parsed = splitHourMinute(numPart)
-            hour = parsed.0
-            minute = parsed.1
-        } else if cleaned.contains(":"), cleaned.count <= 5 {
-            let parsed = splitHourMinute(cleaned)
-            hour = parsed.0
-            minute = parsed.1
+        // Skip if it ends with anything that looks like am/pm (parseTimeExpression handles that)
+        if detectAmPm(String(input.suffix(2))) != nil || detectAmPm(String(input.suffix(1))) != nil {
+            return []
         }
 
+        guard let n = extractNumber(input), n > 0, n <= 999 else { return [] }
+
+        let now = Date()
+        var results: [TimeSuggestion] = []
+
+        // 3-4 digit numeric input: interpret as HMM or HHMM time (e.g. "935" → 9:35)
+        if Int(input) != nil, input.count >= 3, input.count <= 4 {
+            let h = n / 100
+            let m = n % 100
+            if h >= 1, h <= 12, m >= 0, m <= 59 {
+                results += ambiguousTimeResults(hour12: h, minute: m)
+            }
+        }
+
+        let inMinutes = now.addingTimeInterval(Double(n) * 60)
+        results.append(TimeSuggestion(label: "in \(n) minute\(n == 1 ? "" : "s")", date: inMinutes, formattedDate: formatDate(inMinutes)))
+
+        if n <= 48 {
+            let inHours = now.addingTimeInterval(Double(n) * 3600)
+            results.append(TimeSuggestion(label: "in \(n) hour\(n == 1 ? "" : "s")", date: inHours, formattedDate: formatDate(inHours)))
+        }
+        if n <= 30 {
+            let inWeekdays = addWeekdays(n, from: now)
+            results.append(TimeSuggestion(label: "in \(n) weekday\(n == 1 ? "" : "s")", date: inWeekdays, formattedDate: formatDate(inWeekdays)))
+        }
+
+        return results
+    }
+
+    // MARK: - Ambiguous Time (both AM and PM, nearest first)
+
+    private func ambiguousTimeResults(hour12: Int, minute: Int) -> [TimeSuggestion] {
+        let calendar = Calendar.current
+        let now = Date()
+        var options: [TimeSuggestion] = []
+
+        let amHour = hour12 == 12 ? 0 : hour12
+        let pmHour = hour12 == 12 ? 12 : hour12 + 12
+
+        for h in [amHour, pmHour] {
+            var todayComp = calendar.dateComponents([.year, .month, .day], from: now)
+            todayComp.hour = h
+            todayComp.minute = minute
+            if let todayDate = calendar.date(from: todayComp), todayDate > now {
+                let label = "today at \(formatTimeLabel(h, minute))"
+                options.append(TimeSuggestion(label: label, date: todayDate, formattedDate: formatDate(todayDate)))
+            }
+
+            let tomorrowDay = calendar.date(byAdding: .day, value: 1, to: now)!
+            var tomorrowComp = calendar.dateComponents([.year, .month, .day], from: tomorrowDay)
+            tomorrowComp.hour = h
+            tomorrowComp.minute = minute
+            if let tomorrowDate = calendar.date(from: tomorrowComp) {
+                let label = "tomorrow at \(formatTimeLabel(h, minute))"
+                options.append(TimeSuggestion(label: label, date: tomorrowDate, formattedDate: formatDate(tomorrowDate)))
+            }
+        }
+
+        options.sort { $0.date < $1.date }
+        return Array(options.prefix(2))
+    }
+
+    // MARK: - Time Expression ("9pm", "9p", "9om", "five am", "nine twenty five pm", "3:30 pm")
+
+    private func parseTimeExpression(_ input: String) -> [TimeSuggestion] {
+        var words = input.split(separator: " ").map { String($0).lowercased() }
+
+        // Expand hyphenated words ("twenty-five" → "twenty", "five")
+        words = words.flatMap { $0.contains("-") ? $0.split(separator: "-").map(String.init) : [$0] }
+
+        // Strip leading "at"
+        if words.first == "at" { words.removeFirst() }
+
+        // Remove "o'clock" / "oclock" / "clock"
+        words = words.filter { !["o'clock", "oclock", "clock"].contains($0) }
+
+        guard !words.isEmpty else { return [] }
+
+        var isPM: Bool?
+
+        // Step 1: Check if last word is an am/pm indicator (exact, progressive, or fuzzy)
+        if let last = words.last {
+            if let result = detectAmPm(last) {
+                isPM = result
+                words.removeLast()
+            }
+            // Step 2: Time-of-day prefix (progressive, min 2 chars to avoid "a" matching "afternoon")
+            else {
+                let l = last.lowercased()
+                if l.count >= 2 {
+                    if "morning".hasPrefix(l) { isPM = false; words.removeLast() }
+                    else if "afternoon".hasPrefix(l) { isPM = true; words.removeLast() }
+                    else if "evening".hasPrefix(l) { isPM = true; words.removeLast() }
+                    else if "night".hasPrefix(l) { isPM = true; words.removeLast() }
+                }
+            }
+        }
+
+        // Step 3: Check for attached suffix on last word (e.g., "9pm", "9om", "9p")
+        if isPM == nil, let last = words.last, last.count >= 2 {
+            // Try 2-char suffix
+            if last.count >= 3 {
+                let suffix = String(last.suffix(2))
+                if let result = detectAmPm(suffix) {
+                    isPM = result
+                    words[words.count - 1] = String(last.dropLast(2))
+                }
+            }
+            // Try 1-char suffix
+            if isPM == nil {
+                let suffix = String(last.suffix(1))
+                if let result = detectAmPm(suffix) {
+                    isPM = result
+                    words[words.count - 1] = String(last.dropLast(1))
+                }
+            }
+        }
+
+        // Remove filler words
+        words = words.filter { !["in", "the", "o"].contains($0) }
+
+        guard !words.isEmpty else { return [] }
+
+        var hour: Int?
+        var minute: Int = 0
+
+        if let colonWord = words.first(where: { $0.contains(":") }) {
+            let parsed = splitHourMinute(colonWord)
+            hour = parsed.0
+            minute = parsed.1
+        } else if words.count == 1 {
+            hour = extractNumber(words[0])
+        } else {
+            // First word is hour, remaining words form the minute
+            hour = extractNumber(words[0])
+            let minuteWords = Array(words.dropFirst())
+            minute = parseCompoundNumber(minuteWords) ?? 0
+        }
+
+        // Must have am/pm indicator or colon format to be a valid time expression
         guard var h = hour, h >= 0, h <= 23, minute >= 0, minute <= 59 else { return [] }
+        guard isPM != nil || input.contains(":") else { return [] }
 
         if let pm = isPM {
+            if h > 12 { return [] }
             if pm && h != 12 { h += 12 }
             if !pm && h == 12 { h = 0 }
         }
@@ -161,7 +250,6 @@ public class NaturalLanguageDateParser {
         let now = Date()
         var results: [TimeSuggestion] = []
 
-        // Today
         var todayComp = calendar.dateComponents([.year, .month, .day], from: now)
         todayComp.hour = h
         todayComp.minute = minute
@@ -170,7 +258,6 @@ public class NaturalLanguageDateParser {
             results.append(TimeSuggestion(label: label, date: todayDate, formattedDate: formatDate(todayDate)))
         }
 
-        // Tomorrow
         let tomorrowDay = calendar.date(byAdding: .day, value: 1, to: now)!
         var tomorrowComp = calendar.dateComponents([.year, .month, .day], from: tomorrowDay)
         tomorrowComp.hour = h
@@ -183,7 +270,23 @@ public class NaturalLanguageDateParser {
         return results
     }
 
-    // MARK: - Keyword Matching ("later", "tonight", "tomorrow", "next week")
+    // MARK: - Compound Number ("twenty five" → 25)
+
+    private func parseCompoundNumber(_ words: [String]) -> Int? {
+        if words.isEmpty { return nil }
+        if words.count == 1 { return extractNumber(words[0]) }
+
+        if words.count == 2,
+           let tens = extractNumber(words[0]),
+           let ones = extractNumber(words[1]),
+           tens >= 20, tens % 10 == 0, ones >= 1, ones <= 9 {
+            return tens + ones
+        }
+
+        return nil
+    }
+
+    // MARK: - Keyword Matching (with fuzzy search)
 
     private func matchKeywords(_ input: String) -> [TimeSuggestion] {
         let now = Date()
@@ -196,6 +299,18 @@ public class NaturalLanguageDateParser {
         }
 
         let keywords: [Keyword] = [
+            Keyword(match: "noon", label: "noon", date: {
+                var c = calendar.dateComponents([.year, .month, .day], from: now)
+                c.hour = 12; c.minute = 0
+                let d = calendar.date(from: c)!
+                return d > now ? d : calendar.date(byAdding: .day, value: 1, to: d)!
+            }),
+            Keyword(match: "midnight", label: "midnight", date: {
+                let tomorrow = calendar.date(byAdding: .day, value: 1, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+                c.hour = 0; c.minute = 0
+                return calendar.date(from: c)!
+            }),
             Keyword(match: "later today", label: "later today", date: { [self] in laterToday() }),
             Keyword(match: "later", label: "later today", date: { [self] in laterToday() }),
             Keyword(match: "tonight", label: "tonight", date: {
@@ -210,6 +325,24 @@ public class NaturalLanguageDateParser {
                 c.hour = 9; c.minute = 0
                 return calendar.date(from: c)!
             }),
+            Keyword(match: "tomorrow afternoon", label: "tomorrow afternoon", date: {
+                let tmrw = calendar.date(byAdding: .day, value: 1, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: tmrw)
+                c.hour = 14; c.minute = 0
+                return calendar.date(from: c)!
+            }),
+            Keyword(match: "tomorrow evening", label: "tomorrow evening", date: {
+                let tmrw = calendar.date(byAdding: .day, value: 1, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: tmrw)
+                c.hour = 19; c.minute = 0
+                return calendar.date(from: c)!
+            }),
+            Keyword(match: "tomorrow night", label: "tomorrow night", date: {
+                let tmrw = calendar.date(byAdding: .day, value: 1, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: tmrw)
+                c.hour = 21; c.minute = 0
+                return calendar.date(from: c)!
+            }),
             Keyword(match: "tomorrow", label: "tomorrow", date: {
                 let tmrw = calendar.date(byAdding: .day, value: 1, to: now)!
                 var c = calendar.dateComponents([.year, .month, .day], from: tmrw)
@@ -218,6 +351,36 @@ public class NaturalLanguageDateParser {
             }),
             Keyword(match: "this weekend", label: "this weekend", date: { [self] in
                 nextSaturday(at: 12, minute: 0)
+            }),
+            Keyword(match: "end of day", label: "end of day", date: {
+                var c = calendar.dateComponents([.year, .month, .day], from: now)
+                c.hour = 17; c.minute = 0
+                let d = calendar.date(from: c)!
+                return d > now ? d : calendar.date(byAdding: .day, value: 1, to: d)!
+            }),
+            Keyword(match: "eod", label: "end of day", date: {
+                var c = calendar.dateComponents([.year, .month, .day], from: now)
+                c.hour = 17; c.minute = 0
+                let d = calendar.date(from: c)!
+                return d > now ? d : calendar.date(byAdding: .day, value: 1, to: d)!
+            }),
+            Keyword(match: "end of week", label: "end of week", date: {
+                let weekday = calendar.component(.weekday, from: now)
+                let daysToFriday = (6 - weekday + 7) % 7
+                let friday = calendar.date(byAdding: .day, value: daysToFriday, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: friday)
+                c.hour = 17; c.minute = 0
+                let d = calendar.date(from: c)!
+                return d > now ? d : calendar.date(byAdding: .weekOfYear, value: 1, to: d)!
+            }),
+            Keyword(match: "eow", label: "end of week", date: {
+                let weekday = calendar.component(.weekday, from: now)
+                let daysToFriday = (6 - weekday + 7) % 7
+                let friday = calendar.date(byAdding: .day, value: daysToFriday, to: now)!
+                var c = calendar.dateComponents([.year, .month, .day], from: friday)
+                c.hour = 17; c.minute = 0
+                let d = calendar.date(from: c)!
+                return d > now ? d : calendar.date(byAdding: .weekOfYear, value: 1, to: d)!
             }),
             Keyword(match: "next week", label: "next week", date: { [self] in
                 nextWeekday(.monday, at: 9)
@@ -246,7 +409,10 @@ public class NaturalLanguageDateParser {
         var seenLabels = Set<String>()
 
         for kw in keywords {
-            if kw.match.hasPrefix(input) || input.hasPrefix(kw.match) {
+            let matches = kw.match.hasPrefix(input)
+                || input.hasPrefix(kw.match)
+                || fuzzyMatch(input, kw.match)
+            if matches {
                 if seenLabels.insert(kw.label).inserted {
                     let date = kw.date()
                     let isNever = date == .distantFuture
@@ -263,37 +429,87 @@ public class NaturalLanguageDateParser {
         return results
     }
 
-    // MARK: - Duration ("3 hours", "30 min", "2 days")
+    // MARK: - Duration ("3 hours", "3h", "30 min", "in 2 days", "an hour", "half hour")
 
     private func parseDuration(_ input: String) -> [TimeSuggestion] {
-        let parts = input.split(separator: " ")
-        guard parts.count == 2 else { return [] }
+        var parts = input.split(separator: " ").map { String($0) }
 
-        guard let n = extractNumber(String(parts[0])), n > 0 else { return [] }
+        // Strip leading "in"
+        if parts.first == "in" { parts.removeFirst() }
 
-        let unit = String(parts[1])
         let now = Date()
 
-        if unit.hasPrefix("min") {
-            let date = now.addingTimeInterval(Double(n) * 60)
-            return [TimeSuggestion(label: "in \(n) minute\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date))]
-        } else if unit.hasPrefix("hour") || unit == "hr" || unit == "hrs" {
-            let date = now.addingTimeInterval(Double(n) * 3600)
-            return [TimeSuggestion(label: "in \(n) hour\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date))]
-        } else if unit.hasPrefix("day") {
-            let date = Calendar.current.date(byAdding: .day, value: n, to: now)!
-            return [TimeSuggestion(label: "in \(n) day\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date))]
-        } else if unit.hasPrefix("week") {
-            let date = Calendar.current.date(byAdding: .weekOfYear, value: n, to: now)!
-            return [TimeSuggestion(label: "in \(n) week\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date))]
+        // "a/an hour/day/week/month"
+        if parts.count == 2 && (parts[0] == "a" || parts[0] == "an") {
+            return durationResult(n: 1, unit: parts[1], now: now)
         }
 
-        return []
+        // "half hour", "half an hour"
+        if parts.first == "half" {
+            let unitParts = Array(parts.dropFirst()).filter { $0 != "an" && $0 != "a" }
+            if let unit = unitParts.first, "hour".hasPrefix(unit.lowercased()) || unit.lowercased().hasPrefix("hour") {
+                let date = now.addingTimeInterval(1800)
+                return [TimeSuggestion(label: "in 30 minutes", date: date, formattedDate: formatDate(date))]
+            }
+        }
+
+        // Compact format: "3h", "30min", "2d"
+        if parts.count == 1 {
+            let part = parts[0]
+            if let splitIdx = part.firstIndex(where: { $0.isLetter }) {
+                let numStr = String(part[part.startIndex..<splitIdx])
+                let unitStr = String(part[splitIdx...])
+                if let n = extractNumber(numStr), n > 0 {
+                    return durationResult(n: n, unit: unitStr, now: now)
+                }
+            }
+        }
+
+        guard parts.count == 2 else { return [] }
+        guard let n = extractNumber(parts[0]), n > 0 else { return [] }
+
+        return durationResult(n: n, unit: parts[1], now: now)
     }
 
-    // MARK: - Day Name ("monday", "fri")
+    private func durationResult(n: Int, unit: String, now: Date) -> [TimeSuggestion] {
+        var results: [TimeSuggestion] = []
+        let u = unit.lowercased()
+
+        // Bidirectional prefix matching — "m" matches both minute and month, "h" matches hour, etc.
+        if "minute".hasPrefix(u) || u.hasPrefix("min") {
+            let date = now.addingTimeInterval(Double(n) * 60)
+            results.append(TimeSuggestion(label: "in \(n) minute\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date)))
+        }
+        if "hour".hasPrefix(u) || u.hasPrefix("hour") || u == "hr" || u == "hrs" {
+            let date = now.addingTimeInterval(Double(n) * 3600)
+            results.append(TimeSuggestion(label: "in \(n) hour\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date)))
+        }
+        if "day".hasPrefix(u) || u.hasPrefix("day") {
+            let date = Calendar.current.date(byAdding: .day, value: n, to: now)!
+            results.append(TimeSuggestion(label: "in \(n) day\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date)))
+        }
+        if "week".hasPrefix(u) || u.hasPrefix("week") {
+            let date = Calendar.current.date(byAdding: .weekOfYear, value: n, to: now)!
+            results.append(TimeSuggestion(label: "in \(n) week\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date)))
+        }
+        if "month".hasPrefix(u) || u.hasPrefix("month") {
+            let date = Calendar.current.date(byAdding: .month, value: n, to: now)!
+            results.append(TimeSuggestion(label: "in \(n) month\(n == 1 ? "" : "s")", date: date, formattedDate: formatDate(date)))
+        }
+
+        return results
+    }
+
+    // MARK: - Day Name ("monday", "fri", "next tuesday") with fuzzy matching
 
     private func parseDayName(_ input: String) -> [TimeSuggestion] {
+        var words = input.split(separator: " ").map { String($0).lowercased() }
+        let hasNext = words.first == "next"
+        if hasNext { words.removeFirst() }
+
+        guard words.count == 1 else { return [] }
+        let dayInput = words[0]
+
         let dayMap: [(prefixes: [String], weekday: Int, name: String)] = [
             (["sunday", "sun"], 1, "Sunday"),
             (["monday", "mon"], 2, "Monday"),
@@ -306,9 +522,14 @@ public class NaturalLanguageDateParser {
 
         for entry in dayMap {
             for prefix in entry.prefixes {
-                if prefix.hasPrefix(input) || input.hasPrefix(prefix) {
+                let matches = prefix.hasPrefix(dayInput)
+                    || dayInput.hasPrefix(prefix)
+                    || fuzzyMatch(dayInput, prefix)
+                    || fuzzyMatch(dayInput, entry.name.lowercased())
+                if matches {
                     let date = nextWeekday(entry.weekday, at: 9)
-                    return [TimeSuggestion(label: entry.name, date: date, formattedDate: formatDate(date))]
+                    let label = hasNext ? "next \(entry.name)" : entry.name
+                    return [TimeSuggestion(label: label, date: date, formattedDate: formatDate(date))]
                 }
             }
         }
@@ -329,6 +550,71 @@ public class NaturalLanguageDateParser {
             guard let date = match.date, date > Date() else { return nil }
             return TimeSuggestion(label: input, date: date, formattedDate: formatDate(date))
         }
+    }
+
+    // MARK: - Fuzzy Matching Helpers
+
+    /// Detects am/pm from a string with exact, progressive ("a", "p"), and fuzzy ("om" → pm) matching.
+    /// Returns true for PM, false for AM, nil for no match.
+    private func detectAmPm(_ s: String) -> Bool? {
+        let lower = s.lowercased()
+        if lower.isEmpty { return nil }
+
+        // Exact / progressive match
+        if ["am", "a.m.", "a.m", "a"].contains(lower) { return false }
+        if ["pm", "p.m.", "p.m", "p"].contains(lower) { return true }
+
+        // Fuzzy: 2-char strings with at most 1 character different
+        if lower.count == 2 {
+            let chars = Array(lower)
+            let amScore = (chars[0] == "a" ? 0 : 1) + (chars[1] == "m" ? 0 : 1)
+            let pmScore = (chars[0] == "p" ? 0 : 1) + (chars[1] == "m" ? 0 : 1)
+
+            if amScore <= 1 && amScore < pmScore { return false }
+            if pmScore <= 1 && pmScore < amScore { return true }
+
+            // Tie-break: keyboard proximity for first character
+            // 'a' neighbors: q, w, s, z  |  'p' neighbors: o, l, [
+            if amScore <= 1 && pmScore <= 1 {
+                if "aqswz".contains(chars[0]) { return false }
+                if "pol;[".contains(chars[0]) { return true }
+            }
+        }
+
+        return nil
+    }
+
+    /// Levenshtein edit distance between two strings.
+    private func levenshtein(_ a: String, _ b: String) -> Int {
+        let m = a.count, n = b.count
+        if m == 0 { return n }
+        if n == 0 { return m }
+
+        let aArr = Array(a), bArr = Array(b)
+        var prev = Array(0...n)
+        var curr = Array(repeating: 0, count: n + 1)
+
+        for i in 1...m {
+            curr[0] = i
+            for j in 1...n {
+                if aArr[i - 1] == bArr[j - 1] {
+                    curr[j] = prev[j - 1]
+                } else {
+                    curr[j] = 1 + min(prev[j], curr[j - 1], prev[j - 1])
+                }
+            }
+            prev = curr
+        }
+        return prev[n]
+    }
+
+    /// Fuzzy match: true if input is within edit distance threshold of target.
+    /// Threshold scales with target length (25%, minimum 1).
+    private func fuzzyMatch(_ input: String, _ target: String) -> Bool {
+        let lenDiff = abs(input.count - target.count)
+        let maxDist = max(1, target.count / 4)
+        if lenDiff > maxDist { return false }
+        return levenshtein(input, target) <= maxDist
     }
 
     // MARK: - Date Formatting
@@ -394,7 +680,6 @@ public class NaturalLanguageDateParser {
         let now = Date()
         let threeHours = now.addingTimeInterval(3 * 3600)
 
-        // Round up to nearest half hour
         var c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: threeHours)
         let min = c.minute ?? 0
         if min <= 30 {
@@ -412,13 +697,9 @@ public class NaturalLanguageDateParser {
         let weekday = calendar.component(.weekday, from: now)
 
         let daysUntil: Int
-        if weekday == 7 { // Already Saturday
-            daysUntil = 7
-        } else if weekday == 1 { // Sunday
-            daysUntil = 6
-        } else {
-            daysUntil = 7 - weekday
-        }
+        if weekday == 7 { daysUntil = 7 }
+        else if weekday == 1 { daysUntil = 6 }
+        else { daysUntil = 7 - weekday }
 
         let saturday = calendar.date(byAdding: .day, value: daysUntil, to: now)!
         var c = calendar.dateComponents([.year, .month, .day], from: saturday)

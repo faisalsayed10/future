@@ -15,6 +15,7 @@ struct NotificationSheet: View {
     @State private var aiSuggestion: TimeSuggestion?
     @State private var isAILoading = false
     @State private var aiTask: Task<Void, Never>?
+    @State private var customDate = Date().addingTimeInterval(3600)
 
     private let parser = NaturalLanguageDateParser()
 
@@ -217,6 +218,10 @@ struct NotificationSheet: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                     }
+
+                    if displaySuggestions.isEmpty {
+                        customPickerSection
+                    }
                 }
             }
 
@@ -277,6 +282,35 @@ struct NotificationSheet: View {
         .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
     }
 
+    // MARK: - Custom Date Picker
+
+    private var customPickerSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundStyle(.secondary)
+                Text("Pick a date & time")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
+
+            DatePicker(
+                "",
+                selection: $customDate,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 14)
+        }
+    }
+
     // MARK: - Helpers
 
     private var snoozeDivider: some View {
@@ -284,7 +318,10 @@ struct NotificationSheet: View {
     }
 
     private func snooze() {
-        guard !displaySuggestions.isEmpty else { return }
+        if displaySuggestions.isEmpty {
+            onSnooze(customDate, false)
+            return
+        }
         let index = min(selectedIndex, displaySuggestions.count - 1)
         let selected = displaySuggestions[index]
         onSnooze(selected.neverNotify ? .distantFuture : selected.date, selected.neverNotify)
