@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		AABB000B2F47015500722EA7 /* FutureShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AABB00012F47015500722EA7 /* FutureShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E48C584B2F49077500191E0F /* FutureShared in Frameworks */ = {isa = PBXBuildFile; productRef = AABB00112F47015500722EA7 /* FutureShared */; };
+		E48C584C2F49077500191E0F /* FutureShared in Frameworks */ = {isa = PBXBuildFile; productRef = AABB00122F47015500722EA7 /* FutureShared */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,35 +37,37 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		E48A73DA2F47015500722EA7 /* Future.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Future.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AABB00012F47015500722EA7 /* FutureShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FutureShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E48A73DA2F47015500722EA7 /* Future.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Future.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E48A73DC2F47015500722EA7 /* Future */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Future;
-			sourceTree = "<group>";
-		};
 		AABB00022F47015500722EA7 /* FutureShareExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FutureShareExtension;
 			sourceTree = "<group>";
 		};
+		E48A73DC2F47015500722EA7 /* Future */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Future;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		E48A73D72F47015500722EA7 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		AABB00042F47015500722EA7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E48C584C2F49077500191E0F /* FutureShared in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E48A73D72F47015500722EA7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E48C584B2F49077500191E0F /* FutureShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +95,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AABB00062F47015500722EA7 /* FutureShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AABB00092F47015500722EA7 /* Build configuration list for PBXNativeTarget "FutureShareExtension" */;
+			buildPhases = (
+				AABB00032F47015500722EA7 /* Sources */,
+				AABB00042F47015500722EA7 /* Frameworks */,
+				AABB00052F47015500722EA7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AABB00022F47015500722EA7 /* FutureShareExtension */,
+			);
+			name = FutureShareExtension;
+			packageProductDependencies = (
+				AABB00122F47015500722EA7 /* FutureShared */,
+			);
+			productName = FutureShareExtension;
+			productReference = AABB00012F47015500722EA7 /* FutureShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E48A73D92F47015500722EA7 /* Future */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E48A73E52F47015600722EA7 /* Build configuration list for PBXNativeTarget "Future" */;
@@ -116,29 +143,6 @@
 			productReference = E48A73DA2F47015500722EA7 /* Future.app */;
 			productType = "com.apple.product-type.application";
 		};
-		AABB00062F47015500722EA7 /* FutureShareExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AABB00092F47015500722EA7 /* Build configuration list for PBXNativeTarget "FutureShareExtension" */;
-			buildPhases = (
-				AABB00032F47015500722EA7 /* Sources */,
-				AABB00042F47015500722EA7 /* Frameworks */,
-				AABB00052F47015500722EA7 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				AABB00022F47015500722EA7 /* FutureShareExtension */,
-			);
-			name = FutureShareExtension;
-			packageProductDependencies = (
-				AABB00122F47015500722EA7 /* FutureShared */,
-			);
-			productName = FutureShareExtension;
-			productReference = AABB00012F47015500722EA7 /* FutureShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -149,10 +153,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
-					E48A73D92F47015500722EA7 = {
+					AABB00062F47015500722EA7 = {
 						CreatedOnToolsVersion = 26.0;
 					};
-					AABB00062F47015500722EA7 = {
+					E48A73D92F47015500722EA7 = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
@@ -166,13 +170,13 @@
 			);
 			mainGroup = E48A73D12F47015500722EA7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "Packages/FutureShared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E48A73DB2F47015500722EA7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "FutureShared" */,
-			);
 			targets = (
 				E48A73D92F47015500722EA7 /* Future */,
 				AABB00062F47015500722EA7 /* FutureShareExtension */,
@@ -181,14 +185,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		E48A73D82F47015500722EA7 /* Resources */ = {
+		AABB00052F47015500722EA7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AABB00052F47015500722EA7 /* Resources */ = {
+		E48A73D82F47015500722EA7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -198,14 +202,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		E48A73D62F47015500722EA7 /* Sources */ = {
+		AABB00032F47015500722EA7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AABB00032F47015500722EA7 /* Sources */ = {
+		E48A73D62F47015500722EA7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -223,6 +227,64 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		AABB00072F47015500722EA7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FutureShareExtension/FutureShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CRRP85K2MJ;
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FutureShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Send to Future";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fsayed.Future.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AABB00082F47015500722EA7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FutureShareExtension/FutureShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CRRP85K2MJ;
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FutureShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Send to Future";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.fsayed.Future.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E48A73E32F47015600722EA7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -354,7 +416,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRRP85K2MJ;
 				ENABLE_PREVIEWS = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Future/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -389,7 +451,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = CRRP85K2MJ;
 				ENABLE_PREVIEWS = YES;
-				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
+				EXCLUDED_SOURCE_FILE_NAMES = Info.plist;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Future/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -414,67 +476,18 @@
 			};
 			name = Release;
 		};
-		AABB00072F47015500722EA7 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FutureShareExtension/FutureShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CRRP85K2MJ;
-				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FutureShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Send to Future";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.fsayed.Future.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		AABB00082F47015500722EA7 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FutureShareExtension/FutureShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CRRP85K2MJ;
-				EXCLUDED_SOURCE_FILE_NAMES = "Info.plist";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FutureShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Send to Future";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.fsayed.Future.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AABB00092F47015500722EA7 /* Build configuration list for PBXNativeTarget "FutureShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AABB00072F47015500722EA7 /* Debug */,
+				AABB00082F47015500722EA7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E48A73D52F47015500722EA7 /* Build configuration list for PBXProject "Future" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -493,19 +506,10 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AABB00092F47015500722EA7 /* Build configuration list for PBXNativeTarget "FutureShareExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AABB00072F47015500722EA7 /* Debug */,
-				AABB00082F47015500722EA7 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "FutureShared" */ = {
+		AABB00102F47015500722EA7 /* XCLocalSwiftPackageReference "Packages/FutureShared" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/FutureShared;
 		};

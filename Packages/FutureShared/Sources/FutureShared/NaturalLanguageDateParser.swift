@@ -38,6 +38,7 @@ public class NaturalLanguageDateParser {
 
         var results: [TimeSuggestion] = []
 
+        results += parseComposite(trimmed)
         results += parseNumber(trimmed)
         results += parseTimeExpression(trimmed)
         results += matchKeywords(trimmed)
@@ -268,6 +269,170 @@ public class NaturalLanguageDateParser {
         }
 
         return results
+    }
+
+    // MARK: - Composite: Time + Date Modifier ("5pm tomorrow", "next monday 3pm")
+
+    private func parseComposite(_ input: String) -> [TimeSuggestion] {
+        let words = input.split(separator: " ").map { String($0).lowercased() }
+        guard words.count >= 2 else { return [] }
+
+        for splitAt in 1..<words.count {
+            let part1 = words[0..<splitAt].joined(separator: " ")
+            let part2 = words[splitAt...].joined(separator: " ")
+
+            if let time = extractTimeComponents(part1), let baseDate = extractBaseDate(part2) {
+                return makeCompositeResults(hour: time.hour, minute: time.minute, baseDate: baseDate)
+            }
+
+            if let time = extractTimeComponents(part2), let baseDate = extractBaseDate(part1) {
+                return makeCompositeResults(hour: time.hour, minute: time.minute, baseDate: baseDate)
+            }
+        }
+
+        return []
+    }
+
+    private func extractTimeComponents(_ input: String) -> (hour: Int, minute: Int)? {
+        var words = input.split(separator: " ").map { String($0).lowercased() }
+        words = words.flatMap { $0.contains("-") ? $0.split(separator: "-").map(String.init) : [$0] }
+        if words.first == "at" { words.removeFirst() }
+        words = words.filter { !["o'clock", "oclock", "clock"].contains($0) }
+        guard !words.isEmpty else { return nil }
+
+        var isPM: Bool?
+
+        if let last = words.last {
+            if let result = detectAmPm(last) {
+                isPM = result
+                words.removeLast()
+            } else {
+                let l = last.lowercased()
+                if l.count >= 2 {
+                    if "morning".hasPrefix(l) { isPM = false; words.removeLast() }
+                    else if "afternoon".hasPrefix(l) { isPM = true; words.removeLast() }
+                    else if "evening".hasPrefix(l) { isPM = true; words.removeLast() }
+                    else if "night".hasPrefix(l) { isPM = true; words.removeLast() }
+                }
+            }
+        }
+
+        if isPM == nil, let last = words.last, last.count >= 2 {
+            if last.count >= 3 {
+                let suffix = String(last.suffix(2))
+                if let result = detectAmPm(suffix) {
+                    isPM = result
+                    words[words.count - 1] = String(last.dropLast(2))
+                }
+            }
+            if isPM == nil {
+                let suffix = String(last.suffix(1))
+                if let result = detectAmPm(suffix) {
+                    isPM = result
+                    words[words.count - 1] = String(last.dropLast(1))
+                }
+            }
+        }
+
+        words = words.filter { !["in", "the", "o"].contains($0) }
+        guard !words.isEmpty else { return nil }
+
+        var hour: Int?
+        var minute: Int = 0
+
+        if let colonWord = words.first(where: { $0.contains(":") }) {
+            let parsed = splitHourMinute(colonWord)
+            hour = parsed.0
+            minute = parsed.1
+        } else if words.count == 1 {
+            hour = extractNumber(words[0])
+        } else {
+            hour = extractNumber(words[0])
+            let minuteWords = Array(words.dropFirst())
+            minute = parseCompoundNumber(minuteWords) ?? 0
+        }
+
+        guard var h = hour, h >= 0, h <= 23, minute >= 0, minute <= 59 else { return nil }
+        guard isPM != nil || input.contains(":") else { return nil }
+
+        if let pm = isPM {
+            if h > 12 { return nil }
+            if pm && h != 12 { h += 12 }
+            if !pm && h == 12 { h = 0 }
+        }
+
+        return (h, minute)
+    }
+
+    private func extractBaseDate(_ input: String) -> Date? {
+        let trimmed = input.trimmingCharacters(in: .whitespaces).lowercased()
+        let calendar = Calendar.current
+        let now = Date()
+
+        let tomorrowVariants = ["tomorrow", "tmr", "tmrw", "tmw", "tom"]
+        for variant in tomorrowVariants {
+            if variant.hasPrefix(trimmed) || trimmed.hasPrefix(variant) || fuzzyMatch(trimmed, variant) {
+                let tmrw = calendar.date(byAdding: .day, value: 1, to: now)!
+                return calendar.startOfDay(for: tmrw)
+            }
+        }
+
+        if "today".hasPrefix(trimmed) || trimmed.hasPrefix("today") || fuzzyMatch(trimmed, "today") {
+            return calendar.startOfDay(for: now)
+        }
+
+        if "tonight".hasPrefix(trimmed) || trimmed.hasPrefix("tonight") || fuzzyMatch(trimmed, "tonight") {
+            return calendar.startOfDay(for: now)
+        }
+
+        let dayMap: [(prefixes: [String], weekday: Int)] = [
+            (["sunday", "sun"], 1), (["monday", "mon"], 2), (["tuesday", "tue", "tues"], 3),
+            (["wednesday", "wed"], 4), (["thursday", "thu", "thur", "thurs"], 5),
+            (["friday", "fri"], 6), (["saturday", "sat"], 7),
+        ]
+
+        var words = trimmed.split(separator: " ").map(String.init)
+        if words.first == "next" { words.removeFirst() }
+
+        if words.count == 1 {
+            for entry in dayMap {
+                for prefix in entry.prefixes {
+                    if prefix.hasPrefix(words[0]) || words[0].hasPrefix(prefix)
+                        || fuzzyMatch(words[0], prefix) || fuzzyMatch(words[0], entry.prefixes[0])
+                    {
+                        let target = entry.weekday
+                        let current = calendar.component(.weekday, from: now)
+                        var daysAhead = target - current
+                        if daysAhead <= 0 { daysAhead += 7 }
+                        let date = calendar.date(byAdding: .day, value: daysAhead, to: now)!
+                        return calendar.startOfDay(for: date)
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func makeCompositeResults(hour: Int, minute: Int, baseDate: Date) -> [TimeSuggestion] {
+        let calendar = Calendar.current
+        var comp = calendar.dateComponents([.year, .month, .day], from: baseDate)
+        comp.hour = hour
+        comp.minute = minute
+
+        guard let date = calendar.date(from: comp), date > Date() else { return [] }
+
+        let label = "\(formatDayLabel(date)) at \(formatTimeLabel(hour, minute))"
+        return [TimeSuggestion(label: label, date: date, formattedDate: formatDate(date))]
+    }
+
+    private func formatDayLabel(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "today" }
+        if calendar.isDateInTomorrow(date) { return "tomorrow" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: date)
     }
 
     // MARK: - Compound Number ("twenty five" → 25)

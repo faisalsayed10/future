@@ -40,6 +40,7 @@ public class FutureStore {
         var current = items
         current.removeAll { $0.id == id }
         items = current
+        ThumbnailStore.shared.delete(for: id)
     }
 
     public func snooze(_ id: UUID, to newDate: Date) {

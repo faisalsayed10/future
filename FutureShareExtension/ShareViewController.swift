@@ -3,11 +3,20 @@ import SwiftUI
 import FutureShared
 
 class ShareViewController: UIViewController {
+    private var thumbnailTask: Task<UIImage?, Never>?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
         Task {
             let (url, title) = await extractSharedContent()
+
+            // Start fetching thumbnail immediately in background
+            if let url {
+                thumbnailTask = Task.detached {
+                    await ThumbnailFetcher.shared.fetchThumbnail(for: url)
+                }
+            }
 
             let shareView = ShareView(
                 url: url ?? "",
@@ -17,9 +26,16 @@ class ShareViewController: UIViewController {
                     if !item.isNeverDeliver {
                         NotificationManager.shared.scheduleNotification(for: item)
                     }
-                    self?.extensionContext?.completeRequest(returningItems: nil)
+                    // Save thumbnail if available
+                    Task {
+                        if let image = await self?.thumbnailTask?.value {
+                            ThumbnailStore.shared.save(image, for: item.id)
+                        }
+                        self?.extensionContext?.completeRequest(returningItems: nil)
+                    }
                 },
                 onCancel: { [weak self] in
+                    self?.thumbnailTask?.cancel()
                     self?.extensionContext?.cancelRequest(
                         withError: NSError(domain: "com.fsayed.Future", code: 0)
                     )

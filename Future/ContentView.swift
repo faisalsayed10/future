@@ -6,8 +6,8 @@ struct ContentView: View {
     @State private var items: [FutureItem] = []
     @State private var notificationItem: FutureItem?
     @State private var startInSnoozeMode = false
-    @State private var showMacSetup = false
-    @AppStorage("hasSeenMacSetup") private var hasSeenMacSetup = false
+    @State private var showInlineTitle = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var upcomingItems: [FutureItem] {
         items.filter { !$0.isDelivered && !$0.isNeverDeliver }.sorted { $0.deliverAt < $1.deliverAt }
@@ -25,21 +25,50 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if items.isEmpty {
-                    EmptyStateView()
+                    ScrollView {
+                        VStack(alignment: .leading) {
+                            Text("Future")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .padding(.horizontal, 16)
+
+                            ContentUnavailableView {
+                                Label("No Messages Yet", systemImage: "tray")
+                            } description: {
+                                Text("Share a link from any app and send it to your future self.")
+                            }
+                            .padding(.top, 140)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .refreshable {
+                        loadItems()
+                        labelUnlabeledItems()
+                    }
                 } else {
                     List {
+                        Text("Future")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                            .onScrollVisibilityChange { visible in
+                                showInlineTitle = !visible
+                            }
                         if !upcomingItems.isEmpty {
-                            Section {
-                                ForEach(upcomingItems) { item in
-                                    ItemRow(item: item)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture { openItem(item) }
-                                }
-                                .onDelete { offsets in
-                                    deleteItems(from: upcomingItems, at: offsets)
-                                }
-                            } header: {
-                                Label("Arriving Soon", systemImage: "clock")
+                            ForEach(upcomingItems) { item in
+                                ItemRow(item: item)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { openItem(item) }
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            deleteItem(from: upcomingItems, item: item)
+                                        } label: {
+                                            Image(systemName: "trash")
+                                        }
+                                    }
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                             }
                         }
                         if !deliveredItems.isEmpty {
@@ -48,9 +77,15 @@ struct ContentView: View {
                                     ItemRow(item: item)
                                         .contentShape(Rectangle())
                                         .onTapGesture { openItem(item) }
-                                }
-                                .onDelete { offsets in
-                                    deleteItems(from: deliveredItems, at: offsets)
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                deleteItem(from: deliveredItems, item: item)
+                                            } label: {
+                                                Image(systemName: "trash")
+                                            }
+                                        }
+                                        .listRowSeparator(.hidden)
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                 }
                             } header: {
                                 Label("Delivered", systemImage: "tray.full")
@@ -62,38 +97,51 @@ struct ContentView: View {
                                     ItemRow(item: item)
                                         .contentShape(Rectangle())
                                         .onTapGesture { openItem(item) }
-                                }
-                                .onDelete { offsets in
-                                    deleteItems(from: savedItems, at: offsets)
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                deleteItem(from: savedItems, item: item)
+                                            } label: {
+                                                Image(systemName: "trash")
+                                            }
+                                        }
+                                        .listRowSeparator(.hidden)
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                 }
                             } header: {
                                 Label("Saved", systemImage: "bookmark")
                             }
                         }
                     }
-                    .listStyle(.insetGrouped)
-                }
-            }
-            .navigationTitle("Future")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showMacSetup = true
-                    } label: {
-                        Image(systemName: "macbook.and.iphone")
+                    .listStyle(.plain)
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        if showInlineTitle {
+                            VStack(spacing: 0) {
+                                Text("Future")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                Divider()
+                            }
+                            .background(.bar)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: showInlineTitle)
+                    .refreshable {
+                        loadItems()
+                        labelUnlabeledItems()
                     }
                 }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 loadItems()
                 labelUnlabeledItems()
-                if !hasSeenMacSetup {
-                    showMacSetup = true
-                }
             }
-            .refreshable {
-                loadItems()
-                labelUnlabeledItems()
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    loadItems()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .showNotificationDetail)) { notification in
                 guard let idString = notification.userInfo?["itemId"] as? String,
@@ -105,12 +153,6 @@ struct ContentView: View {
                 if let item = FutureStore.shared.items.first(where: { $0.id == id }) {
                     startInSnoozeMode = snooze
                     notificationItem = item
-                }
-            }
-            .sheet(isPresented: $showMacSetup) {
-                MacSetupView {
-                    hasSeenMacSetup = true
-                    showMacSetup = false
                 }
             }
             .sheet(item: $notificationItem) { item in
@@ -166,12 +208,9 @@ struct ContentView: View {
         loadItems()
     }
 
-    private func deleteItems(from source: [FutureItem], at offsets: IndexSet) {
-        for offset in offsets {
-            let item = source[offset]
-            NotificationManager.shared.cancelNotification(for: item.id)
-            FutureStore.shared.delete(item.id)
-        }
+    private func deleteItem(from source: [FutureItem], item: FutureItem) {
+        NotificationManager.shared.cancelNotification(for: item.id)
+        FutureStore.shared.delete(item.id)
         loadItems()
     }
 
